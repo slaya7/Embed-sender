@@ -1,0 +1,787 @@
+<script type="text/javascript">
+    var gk_isXlsx = false;
+    var gk_xlsxFileLookup = {};
+    var gk_fileData = {};
+    function filledCell(cell) {
+        return cell !== '' && cell != null;
+    }
+    function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                    row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                    headerRowIndex = 0;
+                }
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+    }
+</script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slaya's Embed Sender</title>
+    <link rel="icon" type="image/x-icon" href="wand.png">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(145deg, #c4a7ff 0%, #7b2cbf 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 30px;
+            overflow-x: hidden;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 12px 40px rgba(123, 44, 191, 0.3), 0 0 20px rgba(160, 32, 240, 0.1);
+            width: 100%;
+            max-width: 520px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(12px);
+            position: relative;
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            color: #7b2cbf;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.8px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .instructions {
+            color: #4a1a5c;
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+            text-align: center;
+        }
+        .instructions a {
+            color: #a020f0;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .instructions a:hover {
+            text-decoration: underline;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 24px;
+            background: #f0e4ff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(123, 44, 191, 0.2);
+        }
+        .tab {
+            flex: 1;
+            padding: 14px;
+            text-align: center;
+            cursor: pointer;
+            color: #7b2cbf;
+            font-weight: 600;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .tab:hover {
+            background: #e0d0ff;
+            transform: translateY(-2px);
+        }
+        .tab.active {
+            background: linear-gradient(90deg, #7b2cbf 0%, #a020f0 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(123, 44, 191, 0.3);
+        }
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #ffffff;
+            opacity: 0.5;
+        }
+        .tab-content {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            transform: translateY(10px);
+        }
+        .tab-content.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .form-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+        label {
+            display: block;
+            margin-bottom: 10px;
+            color: #7b2cbf;
+            font-size: 15px;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 14px 14px 14px 40px;
+            border: 1px solid #c78bff;
+            border-radius: 10px;
+            background: #f8f0ff;
+            color: #4a1a5c;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #7b2cbf;
+            box-shadow: 0 0 0 4px rgba(123, 44, 191, 0.2);
+            background: #ffffff;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+            padding: 14px 14px 14px 40px;
+        }
+        .input-wrapper {
+            position: relative;
+            display: block;
+        }
+        .input-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #a020f0;
+            font-size: 18px;
+            opacity: 0.6;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .textarea-icon {
+            position: absolute;
+            left: 12px;
+            top: 14px;
+            color: #a020f0;
+            font-size: 18px;
+            opacity: 0.6;
+            pointer-events: none;
+            z-index: 1;
+        }
+        input:focus + .input-icon, textarea:focus + .textarea-icon {
+            opacity: 1;
+        }
+        .color-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .color-swatch {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 2px solid #c78bff;
+            background: #a020f0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+        .color-swatch:hover {
+            transform: scale(1.1);
+        }
+        .color-picker-wrapper {
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+        .color-input-wrapper {
+            flex-grow: 1;
+        }
+        input[type="color"] {
+            opacity: 0;
+            width: 32px;
+            height: 32px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: pointer;
+        }
+        #ColorHex {
+            width: 100%;
+            padding: 14px 14px 14px 40px;
+        }
+        button {
+            background: linear-gradient(90deg, #7b2cbf 0%, #a020f0 100%);
+            color: #ffffff;
+            padding: 16px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(123, 44, 191, 0.3);
+            position: relative;
+        }
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(123, 44, 191, 0.4);
+            background: linear-gradient(90deg, #a020f0 0%, #c78bff 100%);
+        }
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(123, 44, 191, 0.2);
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 14px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 15px;
+            font-weight: 500;
+            display: none;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            transform: translateY(10px);
+        }
+        #status.show {
+            display: block;
+            transform: translateY(0);
+        }
+        .success {
+            background: #e6ffed;
+            color: #2e7d32;
+            box-shadow: 0 4px 12px rgba(46, 125, 50, 0.2);
+        }
+        #error {
+            margin-top: 20px;
+            padding: 14px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 15px;
+            font-weight: 500;
+            display: none;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            transform: translateY(10px);
+            background: #ffe6e6;
+            color: #d32f2f;
+            box-shadow: 0 4px 12px rgba(211, 47, 47, 0.2);
+        }
+        #error.show {
+            display: block;
+            transform: translateY(0);
+        }
+        .form-group.invalid input,
+        .form-group.invalid textarea {
+            border-color: #d32f2f;
+            box-shadow: 0 0 0 4px rgba(211, 47, 47, 0.2);
+        }
+        .discord-preview {
+            background: #36393f;
+            border-radius: 8px;
+            padding: 16px;
+            min-height: 100px;
+            font-family: 'Whitney', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #dcddde;
+        }
+        .discord-message {
+            max-width: 100%;
+            overflow: hidden;
+        }
+        .discord-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .discord-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 12px;
+            object-fit: cover;
+        }
+        .discord-username {
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffffff;
+            margin: 0;
+        }
+        .discord-bot-tag {
+            background: #7289da;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 2px 4px;
+            border-radius: 3px;
+            margin-left: 6px;
+            line-height: 16px;
+        }
+        .discord-timestamp {
+            font-size: 12px;
+            color: #72767d;
+            margin-left: 8px;
+        }
+        .discord-embed {
+            display: flex;
+            max-width: 520px;
+            margin-top: 8px;
+            background: #2f3136;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .embed-border {
+            width: 4px;
+            background: #a020f0;
+        }
+        .embed-content {
+            padding: 12px;
+            flex: 1;
+        }
+        .embed-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 8px;
+        }
+        .embed-description {
+            font-size: 14px;
+            color: #dcddde;
+            line-height: 1.4;
+        }
+        .tab-content#preview {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Slaya's Embed Sender</h1>
+        <div class="tabs">
+            <div class="tab active" data-tab="sender">🖌️ Editor</div>
+            <div class="tab" data-tab="preview">📸 Preview</div>
+        </div>
+        <div id="sender" class="tab-content active">
+            <div class="form-group">
+                <label for="webhookUrl">Webhook URL:</label>
+                <div class="input-wrapper">
+                    <input type="url" id="webhookUrl" placeholder="https://discord.com/api/webhooks/..." required>
+                    <span class="input-icon">🌐</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="Username">Username:</label>
+                <div class="input-wrapper">
+                    <input type="text" id="Username" placeholder="Enter username" required minlength="2">
+                    <span class="input-icon">👤</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="AvatarUrl">Avatar URL:</label>
+                <div class="input-wrapper">
+                    <input type="url" id="AvatarUrl" placeholder="https://example.com/image.png">
+                    <span class="input-icon">🖼️</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="Title">Title:</label>
+                <div class="input-wrapper">
+                    <input type="text" id="Title" placeholder="Enter embed title" required>
+                    <span class="input-icon">📜</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="Description">Description:</label>
+                <div class="input-wrapper">
+                    <textarea id="Description" rows="4" placeholder="Enter embed description" required></textarea>
+                    <span class="textarea-icon">✍️</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="color-label">
+                    <label>Color:</label>
+                    <div class="color-swatch" id="colorSwatch">
+                        <input type="color" id="Color" value="#a020f0">
+                    </div>
+                </div>
+                <div class="color-picker-wrapper">
+                    <div class="input-wrapper color-input-wrapper">
+                        <input type="text" id="ColorHex" value="#a020f0" placeholder="#a020f0" maxlength="9">
+                        <span class="input-icon">🎨</span>
+                    </div>
+                </div>
+            </div>
+            <button id="submitButton" onclick="submitForm()">Submit</button>
+        </div>
+        <div id="preview" class="tab-content">
+            <div id="previewContent" class="discord-preview">
+                <div class="discord-message">
+                    <div class="discord-header">
+                        <img id="previewAvatar" src="/static/discord-avatar.png" alt="User avatar" class="discord-avatar">
+                        <h1 id="previewUsername" class="discord-username">Username</h1>
+                        <span class="discord-bot-tag">Bot</span>
+                        <span class="discord-timestamp">Today at HH:MM PM</span>
+                    </div>
+                    <div class="discord-embed">
+                        <div class="embed-border" id="embedBorder"></div>
+                        <div class="embed-content">
+                            <div class="embed-title" id="previewTitle">Title</div>
+                            <div class="embed-description" id="previewDescription">Description</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="status" class="success">Embed has been sent!</div>
+        <div id="error">Embed is incomplete!</div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const status = document.getElementById('status');
+            const error = document.getElementById('error');
+            const submitButton = document.getElementById('submitButton');
+            const formGroups = document.querySelectorAll('.form-group');
+            status.classList.remove('show');
+            error.classList.remove('show');
+            formGroups.forEach(group => group.classList.remove('invalid'));
+
+            const inputs = [
+                { id: 'webhookUrl', validate: validateWebhookUrl },
+                { id: 'Username', validate: validateUsername },
+                { id: 'AvatarUrl', validate: validateAvatarUrl },
+                { id: 'Title', validate: validateTitle },
+                { id: 'Description', validate: validateDescription },
+                { id: 'ColorHex', validate: validateColorHex }
+            ];
+
+            inputs.forEach(({ id, validate }) => {
+                const input = document.getElementById(id);
+                if (!input) return;
+                const formGroup = input.closest('.form-group');
+                input.addEventListener('input', () => {
+                    const value = input.value.trim();
+                    const error = validate(value);
+                    const isSenderTab = document.getElementById('sender').classList.contains('active');
+                    if (error) {
+                        formGroup.classList.add('invalid');
+                        if (isSenderTab) {
+                            error.textContent = error;
+                            error.classList.add('show');
+                        }
+                    } else {
+                        formGroup.classList.remove('invalid');
+                        const allValid = inputs.every(({ id, validate }) => {
+                            const val = document.getElementById(id).value.trim();
+                            return !validate(val);
+                        });
+                        if (allValid && isSenderTab) {
+                            error.classList.remove('show');
+                        }
+                    }
+                    updatePreview();
+                });
+            });
+
+            updatePreview();
+        });
+
+        const colorHexInput = document.getElementById('ColorHex');
+        const colorPicker = document.getElementById('Color');
+        const colorSwatch = document.getElementById('colorSwatch');
+
+        colorHexInput.addEventListener('input', (e) => {
+            let value = e.target.value;
+            const hexOnly = value.replace(/#/g, '').replace(/[^0-9a-fA-F]/g, '');
+            e.target.value = '#' + hexOnly.substring(0, 8);
+            const validHexPattern = /^#[0-9a-fA-F]{6}$|^#[0-9a-fA-F]{8}$/;
+            if (validHexPattern.test(e.target.value)) {
+                colorPicker.value = e.target.value;
+                colorSwatch.style.background = e.target.value;
+                updatePreview();
+            }
+        });
+
+        colorPicker.addEventListener('input', (e) => {
+            colorHexInput.value = e.target.value;
+            colorSwatch.style.background = e.target.value;
+            updatePreview();
+        });
+
+        function validateWebhookUrl(value) {
+            const urlPattern = /^(https:\/\/discord\.com\/api\/webhooks\/[^\s]+)$/;
+            if (!value || !urlPattern.test(value)) return 'Embed is incomplete!';
+            return '';
+        }
+
+        function validateUsername(value) {
+            if (!value || value.length < 2) return 'Embed is incomplete!';
+            return '';
+        }
+
+        function validateAvatarUrl(value) {
+            const urlPattern = /^(https?:\/\/[^\s$.?#].[^\s]*)$/;
+            if (value && !urlPattern.test(value)) return 'Embed is incomplete!';
+            return '';
+        }
+
+        function validateTitle(value) {
+            if (!value) return 'Embed is incomplete!';
+            return '';
+        }
+
+        function validateDescription(value) {
+            if (!value) return 'Embed is incomplete!';
+            return '';
+        }
+
+        function validateColorHex(value) {
+            const hexPattern = /^#$|^#[0-9a-fA-F]{6}$|^#[0-9a-fA-F]{8}$/;
+            if (!hexPattern.test(value)) return 'Embed is incomplete!';
+            return '';
+        }
+
+        function updatePreview() {
+            const webhookUrl = document.getElementById('webhookUrl').value.trim();
+            const username = document.getElementById('Username').value.trim();
+            const avatarUrl = document.getElementById('AvatarUrl').value.trim();
+            const title = document.getElementById('Title').value.trim();
+            const description = document.getElementById('Description').value.trim();
+            const colorHex = document.getElementById('ColorHex').value.trim();
+
+            const previewAvatar = document.getElementById('previewAvatar');
+            const previewUsername = document.getElementById('previewUsername');
+            const previewTitle = document.getElementById('previewTitle');
+            const previewDescription = document.getElementById('previewDescription');
+            const embedBorder = document.getElementById('embedBorder');
+
+            previewAvatar.src = avatarUrl && validateAvatarUrl(avatarUrl) === '' 
+                ? avatarUrl 
+                : 'https://cdn.discordapp.com/embed/avatars/0.png';
+
+            previewUsername.textContent = username || 'Username';
+
+            previewTitle.textContent = title || 'Title';
+
+            previewDescription.textContent = description || 'Description';
+
+            embedBorder.style.background = colorHex && validateColorHex(colorHex) === '' 
+                ? colorHex 
+                : '#a020f0';
+
+            const now = new Date().toLocaleString('en-US', { timeZone: 'Australia/Brisbane' });
+            const date = new Date(now);
+            const hours = date.getHours() % 12 || 12;
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const ampm = date.getHours() >= 12 ? 'PM' : 'AM';
+            document.querySelector('.discord-timestamp').textContent = `Today at ${hours}:${minutes} ${ampm}`;
+        }
+
+        async function sendWebhook(webhookUrl, username, avatarUrl, title, description, colorHex) {
+            try {
+                const color = parseInt(colorHex.replace('#', ''), 16);
+                const embed = {
+                    title: title.slice(0, 256),
+                    description: description.slice(0, 4096),
+                    color: isNaN(color) ? 0 : Math.min(Math.max(color, 0), 16777215)
+                };
+
+                if (!embed.title && !embed.description) {
+                    throw new Error('Embed must have at least a title or description.');
+                }
+
+                const payload = {
+                    username: username.slice(0, 80),
+                    avatar_url: avatarUrl || undefined,
+                    embeds: [embed]
+                };
+
+                console.log('Sending webhook with payload:', JSON.stringify(payload));
+
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                    if (response.status === 401) {
+                        errorMessage = 'Invalid webhook URL or token.';
+                    } else if (response.status === 404) {
+                        errorMessage = 'Webhook not found. It may have been deleted.';
+                    } else if (response.status === 429) {
+                        errorMessage = 'Rate limit exceeded. Please try again later.';
+                    } else if (response.status === 400) {
+                        errorMessage = `Bad request: ${errorText || 'Invalid payload.'}`;
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                console.log('Webhook sent successfully');
+                return true;
+            } catch (error) {
+                console.error('Webhook error:', error.message);
+                return error.message;
+            }
+        }
+
+        async function submitForm() {
+            const webhookUrl = document.getElementById('webhookUrl').value.trim();
+            const username = document.getElementById('Username').value.trim();
+            const avatarUrl = document.getElementById('AvatarUrl').value.trim();
+            let title = document.getElementById('Title').value.trim();
+            let description = document.getElementById('Description').value.trim();
+            let colorHex = document.getElementById('ColorHex').value.trim();
+            const colorPickerValue = colorPicker.value;
+
+            const successStatus = document.getElementById('status');
+            const errorStatus = document.getElementById('error');
+            const submitButton = document.getElementById('submitButton');
+            const formGroups = document.querySelectorAll('.form-group');
+            const isSenderTab = document.getElementById('sender').classList.contains('active');
+
+            successStatus.classList.remove('show');
+            errorStatus.classList.remove('show');
+            formGroups.forEach(group => group.classList.remove('invalid'));
+
+            let hasError = false;
+
+            if (validateWebhookUrl(webhookUrl)) {
+                document.getElementById('webhookUrl').closest('.form-group').classList.add('invalid');
+                hasError = true;
+                if (isSenderTab) errorStatus.textContent = validateWebhookUrl(webhookUrl);
+            }
+
+            if (validateUsername(username)) {
+                document.getElementById('Username').closest('.form-group').classList.add('invalid');
+                hasError = true;
+                if (isSenderTab) errorStatus.textContent = validateUsername(username);
+            }
+
+            if (validateAvatarUrl(avatarUrl)) {
+                document.getElementById('AvatarUrl').closest('.form-group').classList.add('invalid');
+                hasError = true;
+                if (isSenderTab) errorStatus.textContent = validateAvatarUrl(avatarUrl);
+            }
+
+            if (validateTitle(title)) {
+                document.getElementById('Title').closest('.form-group').classList.add('invalid');
+                hasError = true;
+                if (isSenderTab) errorStatus.textContent = validateTitle(title);
+            }
+
+            if (validateDescription(description)) {
+                document.getElementById('Description').closest('.form-group').classList.add('invalid');
+                hasError = true;
+                if (isSenderTab) errorStatus.textContent = validateDescription(description);
+            }
+
+            if (validateColorHex(colorHex)) {
+                document.getElementById('ColorHex').closest('.form-group').classList.add('invalid');
+                hasError = true;
+                if (isSenderTab) errorpassingStatus.textContent = validateColorHex(colorHex);
+            }
+
+            if (hasError) {
+                if (isSenderTab) {
+                    errorStatus.classList.add('show');
+                    setTimeout(() => errorStatus.classList.remove('show'), 3000);
+                }
+                return;
+            }
+
+            if (!title && !description) {
+                errorStatus.textContent = 'Embed must have at least a title or description.';
+                if (isSenderTab) {
+                    errorStatus.classList.add('show');
+                    setTimeout(() => errorStatus.classList.remove('show'), 5000);
+                }
+                return;
+            }
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Sending...';
+
+            const result = await sendWebhook(webhookUrl, username, avatarUrl, title, description, colorHex);
+
+            submitButton.disabled = false;
+            submitButton.textContent = 'Submit';
+
+            if (result === true && isSenderTab) {
+                successStatus.textContent = 'Embed has been sent!';
+                successStatus.classList.add('show');
+                setTimeout(() => successStatus.classList.remove('show'), 3000);
+            } else if (isSenderTab) {
+                errorStatus.textContent = result || 'Failed to send embed! Check your webhook URL and try again.';
+                errorStatus.classList.add('show');
+                setTimeout(() => errorStatus.classList.remove('show'), 5000);
+            }
+        }
+
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                const targetTab = document.getElementById(tab.getAttribute('data-tab'));
+                if (targetTab) {
+                    targetTab.classList.add('active');
+                }
+                document.getElementById('status').classList.remove('show');
+                document.getElementById('error').classList.remove('show');
+                updatePreview();
+            });
+        });
+    </script>
+</body>
+</html>
